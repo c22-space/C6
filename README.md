@@ -119,6 +119,12 @@ c12-accounting/
 
 ---
 
+## Documentation
+
+**[→ User Guide](docs/guide.md)** — step-by-step walkthrough: setup, adding emissions, generating reports, glossary.
+
+---
+
 ## Getting started
 
 ```sh

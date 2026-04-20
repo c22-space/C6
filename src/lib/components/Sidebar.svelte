@@ -1,5 +1,8 @@
 <script lang="ts">
   import { currentRoute, activeOrg, activePeriod } from '$lib/stores/app'
+  import { open } from '@tauri-apps/plugin-shell'
+
+  const DOCS_URL = 'https://github.com/c22-space/c12-accounting/blob/main/docs/guide.md'
 
   const nav = [
     { path: '/dashboard',      label: 'Dashboard',      icon: '◈' },
@@ -47,6 +50,17 @@
       </button>
     {/each}
   </nav>
+
+  <!-- Docs link -->
+  <div class="border-t border-gray-800 px-2 py-2">
+    <button
+      onclick={() => open(DOCS_URL)}
+      class="sidebar-item w-full text-left text-gray-500 hover:text-gray-300"
+    >
+      <span class="w-4 text-center font-mono text-xs">?</span>
+      User guide
+    </button>
+  </div>
 
   <!-- Footer upsell — subtle c22 branding -->
   <div class="border-t border-gray-800 px-4 py-3">
