@@ -1,0 +1,18 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+
+# Tauri
+src-tauri/target
+src-tauri/WixTools
+
+# Rust
+Cargo.lock
+
+# Editor
+.DS_Store
+.vscode
+.idea
+*.swp
