@@ -1,0 +1,9 @@
+[build]
+target = "index.html"
+
+[serve]
+port = 5173
+open = false
+
+[watch]
+ignore = ["dist"]

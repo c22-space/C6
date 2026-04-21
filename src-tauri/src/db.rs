@@ -1,4 +1,7 @@
-use rusqlite::{Connection, Result, params};
+use rusqlite::{
+    functions::FunctionFlags,
+    Connection, Result, params,
+};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -7,8 +10,10 @@ pub struct Database(pub Mutex<Connection>);
 impl Database {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
-        // Enable WAL mode for better concurrent read performance
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")?;
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
+        )?;
+        register_math_functions(&conn)?;
         Ok(Self(Mutex::new(conn)))
     }
 
@@ -49,4 +54,18 @@ impl Database {
 
         Ok(())
     }
+}
+
+fn register_math_functions(conn: &Connection) -> Result<()> {
+    let flags = FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC;
+    conn.create_scalar_function("SQRT", 1, flags, |ctx| {
+        let x: f64 = ctx.get(0)?;
+        Ok(x.sqrt())
+    })?;
+    conn.create_scalar_function("POWER", 2, flags, |ctx| {
+        let base: f64 = ctx.get(0)?;
+        let exp: f64 = ctx.get(1)?;
+        Ok(base.powf(exp))
+    })?;
+    Ok(())
 }

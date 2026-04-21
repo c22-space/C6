@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>c12 — Carbon Accounting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {}
+        }
+      }
+    </script>
+    <style>
+      html, body, #main {
+        height: 100%;
+        background-color: rgb(3 7 18);
+        color: rgb(243 244 246);
+        -webkit-font-smoothing: antialiased;
+      }
+      .no-select {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgb(55 65 81); border-radius: 9999px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgb(75 85 99); }
+      .sidebar-item {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: rgb(156 163 175);
+        transition: background-color 0.15s, color 0.15s;
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .sidebar-item:hover, .sidebar-item.active {
+        background-color: rgb(31 41 55);
+        color: rgb(243 244 246);
+      }
+    </style>
+    <link data-trunk rel="rust" data-wasm-opt="z" />
+  </head>
+  <body class="h-full">
+    <div id="main" class="h-full"></div>
+  </body>
+</html>

@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "space.c22.c12",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "cd ui && trunk serve --port 5173",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "cd ui && trunk build --release",
+    "frontendDist": "../ui/dist"
   },
   "app": {
     "withGlobalTauri": true,
