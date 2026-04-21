@@ -51,6 +51,8 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - run: mkdir -p ui/dist
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
