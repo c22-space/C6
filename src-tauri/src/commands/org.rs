@@ -114,6 +114,7 @@ fn get_org_inner(conn: &rusqlite::Connection, id: i64) -> Result<Organization> {
 
 // ── Entity commands ──────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn create_entity(
     db: State<Database>,

@@ -21,6 +21,7 @@ pub struct IntensityResult {
 }
 
 /// Calculate intensity ratio and store it.
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_and_store(
     conn: &Connection,
     period_id: i64,

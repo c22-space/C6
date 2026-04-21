@@ -53,6 +53,7 @@ pub fn calculate_intensity(
 }
 
 /// Save an intensity metric (GRI 305-4) — auto-calculates from current period inventory.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn save_intensity_metric(
     db: State<Database>,
