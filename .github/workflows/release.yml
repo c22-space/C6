@@ -60,9 +60,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'C12 ${{ github.ref_name }}'
+          releaseName: 'C6 ${{ github.ref_name }}'
           releaseBody: |
-            ## C12 ${{ github.ref_name }}
+            ## C6 ${{ github.ref_name }}
 
             Carbon accounting for GRI 305, ISO 14064 & UNGC.
 

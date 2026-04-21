@@ -1,5 +1,5 @@
 # Skill: Rust Patterns
-Error handling, type safety, and Tauri command conventions for C12.
+Error handling, type safety, and Tauri command conventions for C6.
 
 ## When to use
 When writing or modifying any Rust code in `src-tauri/src/` or `worker/src/`.

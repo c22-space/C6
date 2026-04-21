@@ -32,7 +32,7 @@ pub fn Sidebar() -> impl IntoView {
         <aside class="flex w-56 flex-col border-r border-gray-800 bg-gray-950 no-select">
             // Logo
             <div class="flex h-14 items-center gap-2 border-b border-gray-800 px-4">
-                <span class="text-lg font-bold text-green-500">"C12"</span>
+                <span class="text-lg font-bold text-green-500">"C6"</span>
                 <span class="text-xs text-gray-600">"Carbon Accounting"</span>
             </div>
 

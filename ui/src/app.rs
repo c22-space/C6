@@ -44,7 +44,7 @@ pub fn App() -> impl IntoView {
                 view! {
                     <div class="flex h-full items-center justify-center bg-gray-950">
                         <div class="text-center">
-                            <div class="mb-3 text-2xl font-bold text-green-500">"C12"</div>
+                            <div class="mb-3 text-2xl font-bold text-green-500">"C6"</div>
                             <div class="text-sm text-gray-500">"Loading…"</div>
                         </div>
                     </div>

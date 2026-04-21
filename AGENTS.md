@@ -1,7 +1,7 @@
-# C12 — Agent Instructions
+# C6 — Agent Instructions
 
 ## Project
-C12 is a carbon accounting desktop app targeting GRI 305, ISO 14064-1:2018, and UNGC COP compliance.
+C6 is a carbon accounting desktop app targeting GRI 305, ISO 14064-1:2018, and UNGC COP compliance.
 Users record emission sources, calculate Scope 1/2/3 inventories, and generate compliance reports.
 
 ## Stack

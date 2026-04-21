@@ -1,5 +1,5 @@
 # Skill: Sustainability Standards
-GRI 305, ISO 14064-1:2018, and UNGC COP domain knowledge for C12.
+GRI 305, ISO 14064-1:2018, and UNGC COP domain knowledge for C6.
 
 ## When to use
 When implementing emission calculations, report generation, compliance checks, or any feature touching carbon accounting logic.
@@ -21,7 +21,7 @@ When implementing emission calculations, report generation, compliance checks, o
 ### Biogenic CO₂
 - Tracked separately from fossil GHG emissions per GRI 305-1
 - **Not included** in the Scope 1 total — reported as a supplementary disclosure
-- C12 stores `biogenic_co2_tco2e` on each emission source
+- C6 stores `biogenic_co2_tco2e` on each emission source
 
 ### Key disclosures
 - GRI 305-1: Scope 1 (gross, tCO₂e)
@@ -44,7 +44,7 @@ tCO₂e = (activity_value × emission_factor × GWP_100) / 1000
 - Divide by 1000 to convert kg → tonnes
 
 ### GWP versions
-| Version | Year | Status in C12 |
+| Version | Year | Status in C6 |
 |---|---|---|
 | AR4 | 2007 | Supported (legacy) |
 | AR5 | 2013 | Supported |
@@ -80,7 +80,7 @@ The COP maps to the 10 UNGC Principles across 4 areas:
 
 ### CEO Statement
 - Required for Active and Advanced levels
-- C12 stores `ceo_signed_at` and `ceo_name` on the COP record
+- C6 stores `ceo_signed_at` and `ceo_name` on the COP record
 - The `sign_ceo_statement` Tauri command sets these fields
 
 ### Auto-population

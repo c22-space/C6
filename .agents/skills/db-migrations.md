@@ -1,5 +1,5 @@
 # Skill: DB Migrations
-SQLite migration and connection conventions for C12's rusqlite backend.
+SQLite migration and connection conventions for C6's rusqlite backend.
 
 ## When to use
 When adding tables, columns, or indexes, or when writing queries in `src-tauri/src/`.

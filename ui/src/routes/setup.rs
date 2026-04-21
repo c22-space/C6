@@ -89,7 +89,7 @@ pub fn Setup() -> impl IntoView {
         <div class="flex min-h-screen items-center justify-center bg-gray-950 p-6">
             <div class="w-full max-w-lg">
                 <div class="mb-8 text-center">
-                    <div class="mb-2 text-3xl font-bold text-green-500">"C12"</div>
+                    <div class="mb-2 text-3xl font-bold text-green-500">"C6"</div>
                     <p class="text-sm text-gray-500">"Carbon accounting for GRI 305, ISO 14064 & UNGC"</p>
                 </div>
 

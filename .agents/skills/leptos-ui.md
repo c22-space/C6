@@ -1,5 +1,5 @@
 # Skill: Leptos UI Patterns
-Leptos 0.7 (CSR/WASM) component and reactivity conventions for C12.
+Leptos 0.7 (CSR/WASM) component and reactivity conventions for C6.
 
 ## When to use
 When building or modifying any component in `ui/src/`.
