@@ -1,4 +1,5 @@
 // Scope 1 — Direct GHG Emissions
+// Tests verify ISO 14064-1 formula and GRI 305-1 biogenic CO2 separation.
 // Standard: GRI 305-1, ISO 14064-1 §5.3.1
 //
 // Calculation: Emissions (tCO₂e) = Activity Data × Emission Factor × GWP
@@ -136,4 +137,136 @@ pub fn aggregate_period(
         sources,
         combined_uncertainty_pct,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_conn;
+
+    fn setup(conn: &Connection) -> (i64, i64) {
+        conn.execute(
+            "INSERT INTO organizations (name, boundary_method) VALUES ('Acme', 'operational_control')",
+            [],
+        ).unwrap();
+        let org_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO entities (org_id, name, type) VALUES (?1, 'HQ', 'facility')",
+            params![org_id],
+        ).unwrap();
+        let entity_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO reporting_periods (org_id, year, start_date, end_date)
+             VALUES (?1, 2024, '2024-01-01', '2024-12-31')",
+            params![org_id],
+        ).unwrap();
+        (conn.last_insert_rowid(), entity_id)
+    }
+
+    fn insert_source(conn: &Connection, period_id: i64, entity_id: i64,
+                     activity: f64, ef: f64, gwp: f64, excluded: bool) -> i64 {
+        conn.execute(
+            "INSERT INTO emission_sources
+             (entity_id, period_id, scope, category_name, ghg_type,
+              activity_value, activity_unit, emission_factor_value,
+              emission_factor_unit, emission_factor_source, gwp_value, is_excluded)
+             VALUES (?1, ?2, 1, 'Natural Gas', 'CO2', ?3, 'kWh', ?4, 'kgCO2e/kWh', 'IPCC', ?5, ?6)",
+            params![entity_id, period_id, activity, ef, gwp, excluded as i64],
+        ).unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn calculate_source_applies_iso14064_formula() {
+        // tCO2e = activity × EF × GWP / 1000
+        // 1000 kWh × 0.233 kgCO2e/kWh × 1.0 / 1000 = 0.233 tCO2e
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, false);
+        let result = calculate_source(&conn, id).unwrap();
+        assert!((result - 0.233).abs() < 1e-9, "got {result}");
+    }
+
+    #[test]
+    fn calculate_source_excluded_returns_zero() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, true);
+        assert_eq!(calculate_source(&conn, id).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn calculate_source_stores_result() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 500.0, 0.4, 1.0, false);
+        calculate_source(&conn, id).unwrap();
+        let stored: f64 = conn.query_row(
+            "SELECT emissions_tco2e FROM emission_sources WHERE id = ?1",
+            params![id], |r| r.get(0),
+        ).unwrap();
+        assert!((stored - 0.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_sums_active_sources() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let s1 = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, false);
+        let s2 = insert_source(&conn, period_id, entity_id, 500.0, 0.4, 1.0, false);
+        calculate_source(&conn, s1).unwrap();
+        calculate_source(&conn, s2).unwrap();
+        let total = aggregate_period(&conn, period_id).unwrap();
+        assert!((total.gross_tco2e - 0.433).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_excluded_source_not_in_total() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let active = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, false);
+        let excl = insert_source(&conn, period_id, entity_id, 9999.0, 9.9, 1.0, true);
+        calculate_source(&conn, active).unwrap();
+        calculate_source(&conn, excl).unwrap();
+        let total = aggregate_period(&conn, period_id).unwrap();
+        assert!((total.gross_tco2e - 0.233).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_biogenic_not_in_gross() {
+        // GRI 305-1: biogenic CO2 reported separately, never summed into GHG totals
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, false);
+        conn.execute(
+            "UPDATE emission_sources SET biogenic_co2_tco2e = 0.05 WHERE id = ?1",
+            params![id],
+        ).unwrap();
+        calculate_source(&conn, id).unwrap();
+        let total = aggregate_period(&conn, period_id).unwrap();
+        assert!((total.gross_tco2e - 0.233).abs() < 1e-9, "biogenic must not inflate gross");
+        assert!((total.biogenic_co2_tco2e - 0.05).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_by_gas_breakdown() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let co2 = insert_source(&conn, period_id, entity_id, 1000.0, 0.233, 1.0, false);
+        conn.execute(
+            "INSERT INTO emission_sources
+             (entity_id, period_id, scope, category_name, ghg_type,
+              activity_value, activity_unit, emission_factor_value,
+              emission_factor_unit, emission_factor_source, gwp_value)
+             VALUES (?1, ?2, 1, 'Livestock', 'CH4_non_fossil', 100.0, 'kg', 0.01, 'kgCO2e/kg', 'IPCC', 27.9)",
+            params![entity_id, period_id],
+        ).unwrap();
+        let ch4 = conn.last_insert_rowid();
+        calculate_source(&conn, co2).unwrap();
+        calculate_source(&conn, ch4).unwrap();
+        let total = aggregate_period(&conn, period_id).unwrap();
+        assert!(total.by_gas.contains_key("CO2"));
+        assert!(total.by_gas.contains_key("CH4_non_fossil"));
+        assert_eq!(total.by_gas.len(), 2);
+    }
 }

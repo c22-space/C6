@@ -56,6 +56,14 @@ impl Database {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn test_conn() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(include_str!("../migrations/001_init.sql")).unwrap();
+    register_math_functions(&conn).unwrap();
+    conn
+}
+
 fn register_math_functions(conn: &Connection) -> Result<()> {
     let flags = FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC;
     conn.create_scalar_function("SQRT", 1, flags, |ctx| {

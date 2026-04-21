@@ -158,3 +158,87 @@ pub fn calculate_source(conn: &Connection, source_id: i64) -> Result<f64> {
     )?;
     Ok(emissions_tco2e)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_conn;
+
+    fn setup(conn: &Connection) -> (i64, i64) {
+        conn.execute(
+            "INSERT INTO organizations (name, boundary_method) VALUES ('Acme', 'operational_control')",
+            [],
+        ).unwrap();
+        let org_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO entities (org_id, name, type) VALUES (?1, 'HQ', 'facility')",
+            params![org_id],
+        ).unwrap();
+        let entity_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO reporting_periods (org_id, year, start_date, end_date)
+             VALUES (?1, 2024, '2024-01-01', '2024-12-31')",
+            params![org_id],
+        ).unwrap();
+        (conn.last_insert_rowid(), entity_id)
+    }
+
+    fn insert_source(conn: &Connection, period_id: i64, entity_id: i64,
+                     method: &str, activity: f64, ef: f64, excluded: bool) -> i64 {
+        conn.execute(
+            "INSERT INTO emission_sources
+             (entity_id, period_id, scope, scope2_method, category_name, ghg_type,
+              activity_value, activity_unit, emission_factor_value,
+              emission_factor_unit, emission_factor_source, gwp_value, is_excluded)
+             VALUES (?1, ?2, 2, ?3, 'Grid Electricity', 'CO2', ?4, 'kWh', ?5,
+                     'kgCO2e/kWh', 'DEFRA', 1.0, ?6)",
+            params![entity_id, period_id, method, activity, ef, excluded as i64],
+        ).unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn calculate_source_applies_iso14064_formula() {
+        // 10000 kWh × 0.207 kgCO2e/kWh × 1.0 / 1000 = 2.07 tCO2e
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, "location_based", 10000.0, 0.207, false);
+        let result = calculate_source(&conn, id).unwrap();
+        assert!((result - 2.07).abs() < 1e-9, "got {result}");
+    }
+
+    #[test]
+    fn calculate_source_excluded_returns_zero() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, "location_based", 10000.0, 0.207, true);
+        assert_eq!(calculate_source(&conn, id).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn aggregate_period_location_and_market_totalled_separately() {
+        // GRI 305-2 requires both methods to be reported independently
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let loc = insert_source(&conn, period_id, entity_id, "location_based", 10000.0, 0.207, false);
+        let mkt = insert_source(&conn, period_id, entity_id, "market_based", 10000.0, 0.05, false);
+        calculate_source(&conn, loc).unwrap();
+        calculate_source(&conn, mkt).unwrap();
+        let result = aggregate_period(&conn, period_id).unwrap();
+        assert!((result.location_based_tco2e - 2.07).abs() < 1e-9);
+        assert!((result.market_based_tco2e - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_market_lower_when_renewables_used() {
+        // Market-based should be lower when supplier has clean energy
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let loc = insert_source(&conn, period_id, entity_id, "location_based", 10000.0, 0.207, false);
+        let mkt = insert_source(&conn, period_id, entity_id, "market_based", 10000.0, 0.0, false);
+        calculate_source(&conn, loc).unwrap();
+        calculate_source(&conn, mkt).unwrap();
+        let result = aggregate_period(&conn, period_id).unwrap();
+        assert!(result.market_based_tco2e < result.location_based_tco2e);
+    }
+}

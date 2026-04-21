@@ -141,3 +141,99 @@ pub fn calculate_source(conn: &Connection, source_id: i64) -> Result<f64> {
     )?;
     Ok(emissions_tco2e)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_conn;
+
+    fn setup(conn: &Connection) -> (i64, i64) {
+        conn.execute(
+            "INSERT INTO organizations (name, boundary_method) VALUES ('Acme', 'operational_control')",
+            [],
+        ).unwrap();
+        let org_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO entities (org_id, name, type) VALUES (?1, 'HQ', 'facility')",
+            params![org_id],
+        ).unwrap();
+        let entity_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO reporting_periods (org_id, year, start_date, end_date)
+             VALUES (?1, 2024, '2024-01-01', '2024-12-31')",
+            params![org_id],
+        ).unwrap();
+        (conn.last_insert_rowid(), entity_id)
+    }
+
+    fn insert_source(conn: &Connection, period_id: i64, entity_id: i64,
+                     category: u8, activity: f64, ef: f64) -> i64 {
+        conn.execute(
+            "INSERT INTO emission_sources
+             (entity_id, period_id, scope, scope3_category, category_name, ghg_type,
+              activity_value, activity_unit, emission_factor_value,
+              emission_factor_unit, emission_factor_source, gwp_value)
+             VALUES (?1, ?2, 3, ?3, 'Business Travel', 'CO2', ?4, 'km', ?5,
+                     'kgCO2e/km', 'IPCC', 1.0)",
+            params![entity_id, period_id, category as i64, activity, ef],
+        ).unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn calculate_source_applies_iso14064_formula() {
+        // 5000 km × 0.14 kgCO2e/km × 1.0 / 1000 = 0.7 tCO2e
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 6, 5000.0, 0.14);
+        let result = calculate_source(&conn, id).unwrap();
+        assert!((result - 0.7).abs() < 1e-9, "got {result}");
+    }
+
+    #[test]
+    fn calculate_source_excluded_returns_zero() {
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let id = insert_source(&conn, period_id, entity_id, 6, 5000.0, 0.14);
+        conn.execute(
+            "UPDATE emission_sources SET is_excluded = 1 WHERE id = ?1",
+            params![id],
+        ).unwrap();
+        assert_eq!(calculate_source(&conn, id).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn aggregate_period_has_all_15_categories() {
+        // GHG Protocol requires all 15 Scope 3 categories to be assessed
+        let conn = test_conn();
+        let (period_id, _) = setup(&conn);
+        let result = aggregate_period(&conn, period_id).unwrap();
+        assert_eq!(result.categories.len(), 15);
+        for (i, cat) in result.categories.iter().enumerate() {
+            assert_eq!(cat.category, (i + 1) as u8);
+        }
+    }
+
+    #[test]
+    fn aggregate_period_upstream_downstream_split() {
+        // Categories 1-8 upstream, 9-15 downstream
+        let conn = test_conn();
+        let (period_id, entity_id) = setup(&conn);
+        let upstream = insert_source(&conn, period_id, entity_id, 6, 5000.0, 0.14); // cat 6 = business travel
+        let downstream = insert_source(&conn, period_id, entity_id, 11, 1000.0, 0.5); // cat 11 = use of sold products
+        calculate_source(&conn, upstream).unwrap();
+        calculate_source(&conn, downstream).unwrap();
+        let result = aggregate_period(&conn, period_id).unwrap();
+        assert!((result.upstream_tco2e - 0.7).abs() < 1e-9);
+        assert!((result.downstream_tco2e - 0.5).abs() < 1e-9);
+        assert!((result.gross_tco2e - 1.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn aggregate_period_empty_categories_marked_excluded() {
+        let conn = test_conn();
+        let (period_id, _) = setup(&conn);
+        let result = aggregate_period(&conn, period_id).unwrap();
+        assert_eq!(result.excluded_categories.len(), 15, "all categories excluded when no sources");
+    }
+}
