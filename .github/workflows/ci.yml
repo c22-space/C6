@@ -49,16 +49,3 @@ jobs:
       - name: Test worker
         run: cargo test --manifest-path worker/Cargo.toml
 
-  deploy:
-    runs-on: ubuntu-22.04
-    needs: test
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: worker
-          command: deploy
